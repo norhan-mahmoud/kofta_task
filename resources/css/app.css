@@ -1,0 +1,14 @@
+/* @import 'tailwindcss'; */
+
+@font-face {
+    font-family: 'ELTitch-Regular';
+    src: url('/fonts/ELTitch-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+body {
+    font-family: 'ELTitch-Regular'!important;
+}
+
