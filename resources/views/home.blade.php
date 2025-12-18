@@ -52,6 +52,11 @@
 
                 <span>رحلة الطلب</span>
             </div>
+            <div class="section-div  d-flex justify-content-center align-items-center" onclick="window.location.href='{{ route('orders.tracebackForm') }}'">
+                <img class="image-sec" src="{{ asset('images/log-file.png') }}"  >
+
+                <span> trace back </span>
+            </div>
         </div>
 
         <div class="d-flex justify-content-center align-items-center mt-5">

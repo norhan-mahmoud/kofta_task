@@ -24,7 +24,10 @@ Route::group(['prefix' => 'orders','as' => 'orders.','controller' => App\Http\Co
     Route::get('/','index')->name('index');
     Route::post('/store','store')->name('store');
     Route::get('/lifecycle','lifecycleForm')->name('lifecycleForm');
+    Route::get('/traceback','tracebackForm')->name('tracebackForm');
     Route::get('/search','search')->name('search');
+    Route::get('/traceback-search','getTracebackSearch')->name('traceback-search');
+
 
 });
 

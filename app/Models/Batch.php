@@ -19,9 +19,9 @@ class Batch extends Model
         'remaining_quantity',
     ];
 
-    protected $dates = [
-        'produced_at',
-        'expired_date',
+    protected $casts = [
+        'produced_at' => 'datetime',
+        'expired_date' => 'datetime',
     ];
 
     public function item()

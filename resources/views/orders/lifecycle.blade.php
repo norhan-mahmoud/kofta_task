@@ -48,7 +48,6 @@
 <div class="row justify-content-center my-5">
     <div class="col-md-10">
 
-        {{-- 🔍 Search --}}
         <form id="search-form" class="mb-4">
             <div class="d-flex gap-2">
                 <input type="text" name="order_number" class="form-control"

@@ -105,6 +105,7 @@ class OrderController extends Controller
 
         return view('orders.lifecycle');
     }
+   
 
 
     public function search(Request $request)
@@ -168,49 +169,287 @@ class OrderController extends Controller
 
 
     private function traceItemSource(Batch $batch)
-{
-    if ($batch->source_type === 'supply') {
-        $batch->loadMissing('supply');
+    {
+        if ($batch->source_type === 'supply') {
+            $batch->loadMissing('supply');
 
-        return [
-            'type' => 'supply',
-            'supplier' => optional($batch->supply)->supplier_name,
-            'received_at' => $batch->produced_at,
-        ];
+            return [
+                'type' => 'supply',
+                'supplier' => optional($batch->supply)->supplier_name,
+                'received_at' => $batch->produced_at,
+            ];
+        }
+
+        if ($batch->source_type === 'manufacturing') {
+            $batch->loadMissing('manufacturing.items.item.batches.supply', 'manufacturing.items.item.batches.manufacturing');
+
+            $manufacturing = $batch->manufacturing;
+            if (!$manufacturing) {
+                return null;
+            }
+
+            $inputs = [];
+            foreach ($manufacturing->items as $inputItem) {
+                foreach ($inputItem->item->batches as $inputBatch) {
+                    $inputs[] = [
+                        'item_name' => $inputItem->item->name,
+                        'used_amount' => $inputItem->amount,
+                        'batch_id' => $inputBatch->id,
+                        'source' => $this->traceItemSource($inputBatch),
+                    ];
+                }
+            }
+
+            return [
+                'type' => 'manufacturing',
+                'manufacturing_id' => $manufacturing->id,
+                'factory_date' => $manufacturing->factory_date,
+                'inputs' => $inputs,
+            ];
+        }
+
+        return null;
     }
 
-    if ($batch->source_type === 'manufacturing') {
-        $batch->loadMissing('manufacturing.items.item.batches.supply', 'manufacturing.items.item.batches.manufacturing');
 
-        $manufacturing = $batch->manufacturing;
-        if (!$manufacturing) {
+
+     public function tracebackForm()
+    {
+
+        return view('orders.traceback');
+    }
+    // public function getTracebackSearch(Request $request)
+    // {
+    //     $request->validate([
+    //         'order_number' => 'required|string',
+    //     ]);
+    //     $order = Order::where('order_number', $request->order_number)
+    //         ->with([
+    //             'stocklogs.item',
+    //             'stocklogs.batch.manufacturing',
+    //             'stocklogs.batch.manufacturing.stockLogs.',
+    //             'items.item.batches.supply',        
+    //             'items.item.batches.stockLogs',
+    //             'items.item.batches.manufacturing', 
+    //             'items.item.batches.manufacturing.items.item.batches.supply',
+    //         ])
+    //         ->first();
+    //     if (!$order) {
+    //         return response()->json(['error' => 'الطلب غير موجود'], 404);
+    //     }
+    //     $tracebacks = [];
+    //     foreach ($order->stocklogs as $log) {
+    //         $batch = $log->batch;
+    //         if ($batch) {
+    //             $tracebacks[] = [
+    //                 'item_name' => $log->item->name,
+    //                 'batch_id' => $batch->id,
+    //                 'withdrawn_qty' => abs($log->amount),
+    //             ];
+    //             if($batch->source_type==="supply"){
+    //                 $batch->loadMissing('supply');
+    //                 $tracebacks[count($tracebacks)-1]['source']=[
+    //                     'type'=>'supply',
+    //                     'supplier'=>optional($batch->supply)->supplier_name,
+    //                     'received_at'=>$batch->produced_at->format('Y-m-d'),
+    //                 ];
+    //             }elseif($batch->source_type==="manufacturing"){
+
+    //                 $tracebacks[count($tracebacks)-1]['source']=[
+    //                     'type'=>'manufacturing',
+    //                     'manufacturing_date'=>$batch->produced_at->format('Y-m-d'),
+    //                     'inputs'=> $this->getManufacturingData($batch->source_id),
+    //                 ];
+                    
+    //             }
+    //         }
+    //     }
+    //     logger()->info([
+    //         'order' => [
+    //             'order_number' => $order->order_number,
+    //             'customer' => $order->customer_name,
+    //             'date' => $order->created_at->format('Y-m-d H:i'),
+    //         ],
+    //         'tracebacks' => $tracebacks,
+    //     ]);
+    //     return response()->json([
+    //         'order' => [
+    //             'order_number' => $order->order_number,
+    //             'customer' => $order->customer_name,
+    //             'date' => $order->created_at->format('Y-m-d H:i'),
+    //         ],
+    //         'tracebacks' => $tracebacks,
+    //     ]);
+    // }
+
+
+    // protected function getManufacturingData( $manufacturing_id){
+
+    //     $manufacturing = Manufacturing::find($manufacturing_id);
+    //     $manufacturing = $manufacturing->loadMissing('stocklogs');
+    //     $stocklogs = $manufacturing->stocklogs()->where('action_type','manufacturing_in')->get();
+    //     $inputs = [];
+    //     foreach($stocklogs as $log){
+    //         $batch = Batch::find($log->batch_id);
+    //         if($batch){
+    //             $inputs[] = [
+    //                 'item_name'=>$log->item->name,
+    //                 'used_amount'=>abs($log->amount),
+    //                 'batch_id'=>$batch->id,
+    //             ];
+    //             if($batch->source_type==="supply"){
+    //                 $batch->loadMissing('supply');
+    //                 $inputs[count($inputs)-1]['source']=[
+    //                     'type'=>'supply',
+    //                     'supplier'=>optional($batch->supply)->supplier_name,
+    //                     'received_at'=>$batch->produced_at->format('Y-m-d'),
+    //                 ];
+    //             }elseif($batch->source_type==="manufacturing"){
+    //                 if($batch->manufacturing){
+    //                     $inputs[count($inputs)-1]['source']=[
+    //                         'type'=>'manufacturing',
+    //                         'manufacturing_date'=>$batch->produced_at->format('Y-m-d'),
+    //                         'inputs'=> $this->getManufacturingData($batch->source_id),
+    //                     ];
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     return $inputs;
+    // }
+    public function getTracebackSearch(Request $request)
+    {
+        $data = $request->validate([
+            'order_number' => ['required', 'string'],
+        ]);
+
+        $order = Order::with([
+            'stocklogs.item',
+            'stocklogs.batch.supply',
+            'stocklogs.batch.manufacturing.stocklogs.item',
+        ])->where('order_number', $data['order_number'])
+        ->first();
+
+        if (!$order) {
+            return response()->json([
+                'message' => 'الطلب غير موجود'
+            ], 404);
+        }
+
+        $tracebacks = $order->stocklogs
+            ->map(fn ($log) => $this->formatStockLog($log))
+            ->filter()
+            ->values();
+
+        $response = [
+            'order' => [
+                'order_number' => $order->order_number,
+                'customer'     => $order->customer_name,
+                'date'         => $order->created_at->format('Y-m-d H:i'),
+            ],
+            'tracebacks' => $tracebacks,
+        ];
+
+
+        return response()->json($response);
+    }
+
+    protected function formatStockLog($log): ?array
+    {
+        if (!$log->batch) {
             return null;
         }
 
-        $inputs = [];
-        foreach ($manufacturing->items as $inputItem) {
-            foreach ($inputItem->item->batches as $inputBatch) {
-                $inputs[] = [
-                    'item_name' => $inputItem->item->name,
-                    'used_amount' => $inputItem->amount,
-                    'batch_id' => $inputBatch->id,
-                    'source' => $this->traceItemSource($inputBatch),
-                ];
-            }
-        }
+        $batch = $log->batch;
 
         return [
-            'type' => 'manufacturing',
-            'manufacturing_id' => $manufacturing->id,
-            'factory_date' => $manufacturing->factory_date,
-            'inputs' => $inputs,
+            'item_name'     => $log->item->name,
+            'batch_id'      => $batch->id,
+            'withdrawn_qty' => abs($log->amount),
+            'source'        => $this->resolveBatchSource($batch),
         ];
     }
 
-    return null;
-}
+
+    protected function resolveBatchSource(Batch $batch): array
+    {
+        return match ($batch->source_type) {
+            'supply' => [
+                'type'        => 'supply',
+                'supplier'    => optional($batch->supply)->supplier_name,
+                'received_at' => optional($batch->produced_at)?->format('Y-m-d'),
+            ],
+
+            'manufacturing' => [
+                'type'               => 'manufacturing',
+                'manufacturing_date' => optional($batch->produced_at)?->format('Y-m-d'),
+                'inputs'             => $this->getManufacturingInputs($batch->source_id),
+            ],
+
+            default => [
+                'type' => 'unknown',
+            ],
+        };
+    }
+    protected function getManufacturingInputs(
+        int $manufacturingId,
+        int $depth = 0,
+        int $maxDepth = 5
+    ): array {
+        if ($depth >= $maxDepth) {
+            return [];
+        }
+
+        $manufacturing = Manufacturing::with([
+            'stocklogs' => fn ($q) => $q->where('action_type', 'manufacturing_in'),
+            'stocklogs.item',
+            'stocklogs.batch.supply',
+            'stocklogs.batch.manufacturing',
+        ])->find($manufacturingId);
+
+        if (!$manufacturing) {
+            return [];
+        }
+
+        return $manufacturing->stocklogs->map(function ($log) use ($depth) {
+
+            $batch = $log->batch;
+            if (!$batch) {
+                return null;
+            }
+
+            return [
+                'item_name'   => $log->item->name,
+                'used_amount' => abs($log->amount),
+                'batch_id'    => $batch->id,
+                'source'      => $this->resolveBatchSourceWithDepth($batch, $depth),
+            ];
+
+        })->filter()->values()->toArray();
+    }
+    protected function resolveBatchSourceWithDepth(Batch $batch, int $depth): array
+    {
+        if ($batch->source_type === 'supply') {
+            return [
+                'type'        => 'supply',
+                'supplier'    => optional($batch->supply)->supplier_name,
+                'received_at' => optional($batch->produced_at)?->format('Y-m-d'),
+            ];
+        }
+
+        if ($batch->source_type === 'manufacturing') {
+            return [
+                'type'               => 'manufacturing',
+                'manufacturing_date' => optional($batch->produced_at)?->format('Y-m-d'),
+                'inputs'             => $this->getManufacturingInputs(
+                    $batch->source_id,
+                    $depth + 1
+                ),
+            ];
+        }
+
+        return ['type' => 'unknown'];
+    }
 
 
-
-    
 }

@@ -26,5 +26,15 @@ class Manufacturing extends Model
         return $this->hasOne(Batch::class,'source_id')->where('source_type','manufacturing');
     }
 
+    public function outItem() {
+        return $this->belongsTo(Item::class,'out_item_id');
+    }
+
+    public function stocklogs()
+    {
+        return $this->hasMany(StockLog::class,'reference_id')->where('reference_type','manufacturing');
+    }
+
+    
 
 }
