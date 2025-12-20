@@ -18,12 +18,16 @@ class Manufacturing extends Model
 
     public $timestamps = false;
 
-    public function items() {
-        return $this->hasMany(ItemInManufacturing::class);
+    
+    public function itemsInManufacturing()
+    {
+        return $this->hasMany(ItemInManufacturing::class, 'manufacturing_id');
     }
 
-    public function batch() {
-        return $this->hasOne(Batch::class,'source_id')->where('source_type','manufacturing');
+
+   public function batch()
+    {
+        return $this->morphOne(Batch::class, 'source');
     }
 
     public function outItem() {

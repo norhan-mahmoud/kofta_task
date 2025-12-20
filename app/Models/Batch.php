@@ -33,17 +33,23 @@ class Batch extends Model
     {
         return $this->hasMany(StockLog::class);
     }
-
-    public function supply()
+    public function source()
     {
-        return $this->belongsTo(Supply::class, 'source_id')->where('source_type', 'supply');
+        return $this->morphTo();
     }
 
-    public function manufacturing()
+   
+
+    public function rawMaterials()
     {
-        return $this->belongsTo(Manufacturing::class, 'source_id')
-            ->where('source_type', 'manufacturing');
+        if ($this->source_type === 'App\Models\Manufacturing') {
+            return $this->source->itemsInManufacturing()->with('item.batches.source')->get();
+        }
+        return collect();
     }
+
+
+
 
 
     

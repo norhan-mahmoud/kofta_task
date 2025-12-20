@@ -64,10 +64,12 @@ class OrderController extends Controller
                     'item_id' => $item->id,
                     'quantity' => $itemData['quantity'],
                     'unit_price' => 0,
+                    
                 ]);
 
                 $remainingQty = $itemData['quantity'];
                 $batches = $item->batches()->where('remaining_quantity', '>', 0)->orderBy('produced_at')->get();
+                $batchIds = [];
 
                 foreach ($batches as $batch) {
                     if ($remainingQty <= 0) break;
@@ -88,9 +90,13 @@ class OrderController extends Controller
 
                     $remainingQty -= $deduct;
                 }
+                foreach ($batches as $batch) {
+                        $orderItem->batches()->attach($batch->id);
+                }
 
                 $totalPrice += ($orderItem->unit_price * $orderItem->quantity);
             }
+
 
             $order->update(['total_price' => $totalPrice]);
 
@@ -323,133 +329,13 @@ class OrderController extends Controller
             'order_number' => ['required', 'string'],
         ]);
 
-        $order = Order::with([
-            'stocklogs.item',
-            'stocklogs.batch.supply',
-            'stocklogs.batch.manufacturing.stocklogs.item',
-        ])->where('order_number', $data['order_number'])
-        ->first();
+        $order = Order::where('order_number', $data['order_number'])->with([
+                        'items.batches.source',
+                    ])->first();
 
-        if (!$order) {
-            return response()->json([
-                'message' => 'الطلب غير موجود'
-            ], 404);
-        }
-
-        $tracebacks = $order->stocklogs
-            ->map(fn ($log) => $this->formatStockLog($log))
-            ->filter()
-            ->values();
-
-        $response = [
-            'order' => [
-                'order_number' => $order->order_number,
-                'customer'     => $order->customer_name,
-                'date'         => $order->created_at->format('Y-m-d H:i'),
-            ],
-            'tracebacks' => $tracebacks,
-        ];
+        return view('orders.traceback', compact('order'));
 
 
-        return response()->json($response);
     }
-
-    protected function formatStockLog($log): ?array
-    {
-        if (!$log->batch) {
-            return null;
-        }
-
-        $batch = $log->batch;
-
-        return [
-            'item_name'     => $log->item->name,
-            'batch_id'      => $batch->id,
-            'withdrawn_qty' => abs($log->amount),
-            'source'        => $this->resolveBatchSource($batch),
-        ];
-    }
-
-
-    protected function resolveBatchSource(Batch $batch): array
-    {
-        return match ($batch->source_type) {
-            'supply' => [
-                'type'        => 'supply',
-                'supplier'    => optional($batch->supply)->supplier_name,
-                'received_at' => optional($batch->produced_at)?->format('Y-m-d'),
-            ],
-
-            'manufacturing' => [
-                'type'               => 'manufacturing',
-                'manufacturing_date' => optional($batch->produced_at)?->format('Y-m-d'),
-                'inputs'             => $this->getManufacturingInputs($batch->source_id),
-            ],
-
-            default => [
-                'type' => 'unknown',
-            ],
-        };
-    }
-    protected function getManufacturingInputs(
-        int $manufacturingId,
-        int $depth = 0,
-        int $maxDepth = 5
-    ): array {
-        if ($depth >= $maxDepth) {
-            return [];
-        }
-
-        $manufacturing = Manufacturing::with([
-            'stocklogs' => fn ($q) => $q->where('action_type', 'manufacturing_in'),
-            'stocklogs.item',
-            'stocklogs.batch.supply',
-            'stocklogs.batch.manufacturing',
-        ])->find($manufacturingId);
-
-        if (!$manufacturing) {
-            return [];
-        }
-
-        return $manufacturing->stocklogs->map(function ($log) use ($depth) {
-
-            $batch = $log->batch;
-            if (!$batch) {
-                return null;
-            }
-
-            return [
-                'item_name'   => $log->item->name,
-                'used_amount' => abs($log->amount),
-                'batch_id'    => $batch->id,
-                'source'      => $this->resolveBatchSourceWithDepth($batch, $depth),
-            ];
-
-        })->filter()->values()->toArray();
-    }
-    protected function resolveBatchSourceWithDepth(Batch $batch, int $depth): array
-    {
-        if ($batch->source_type === 'supply') {
-            return [
-                'type'        => 'supply',
-                'supplier'    => optional($batch->supply)->supplier_name,
-                'received_at' => optional($batch->produced_at)?->format('Y-m-d'),
-            ];
-        }
-
-        if ($batch->source_type === 'manufacturing') {
-            return [
-                'type'               => 'manufacturing',
-                'manufacturing_date' => optional($batch->produced_at)?->format('Y-m-d'),
-                'inputs'             => $this->getManufacturingInputs(
-                    $batch->source_id,
-                    $depth + 1
-                ),
-            ];
-        }
-
-        return ['type' => 'unknown'];
-    }
-
 
 }

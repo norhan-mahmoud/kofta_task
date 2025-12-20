@@ -18,6 +18,13 @@ return new class extends Migration
              $table->decimal('quantity', 10, 2);
              $table->decimal('unit_price', 10, 2);
         });
+       Schema::create('order_item_batches', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('batch_id')->constrained('batches')->onDelete('cascade');
+            $table->foreignId('order_item_id')->constrained('order_items')->onDelete('cascade');
+            $table->timestamps(); // لو حابب
+        });
+
     }
 
     /**
@@ -26,5 +33,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('order_items');
+        Schema::dropIfExists('order_item_batches');
+
+      
     }
 };

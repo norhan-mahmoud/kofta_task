@@ -17,10 +17,9 @@ class Supply extends Model
 
     public $timestamps = false;
 
-    public function batches()
+    public function batch()
     {
-        return $this->hasMany(Batch::class, 'source_id')
-            ->where('source_type', 'supply');
+        return $this->morphOne(Batch::class, 'source');
     }
 
 }

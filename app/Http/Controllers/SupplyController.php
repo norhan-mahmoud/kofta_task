@@ -49,7 +49,7 @@ class SupplyController extends Controller
             foreach ($request->items as $item) {
                 $batch = Batch::create([
                     'item_id'            => $item['item_id'],
-                    'source_type'        => 'supply',
+                    'source_type'        => 'App\Models\Supply',
                     'source_id'          => $supply->id,
                     'initial_quantity'   => $item['quantity'],
                     'remaining_quantity' => $item['quantity'],

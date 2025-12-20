@@ -26,4 +26,8 @@ class Item extends Model
         });
     }
 
+    public function manufacturingsOut() {
+        return $this->hasMany(Manufacturing::class,'out_item_id');
+    }
+
 }

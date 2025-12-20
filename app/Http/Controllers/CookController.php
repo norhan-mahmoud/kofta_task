@@ -76,7 +76,7 @@ class CookController extends Controller
 
                     $batch->decrement('remaining_quantity', $deduct);
 
-                    $manufacturing->items()->create([
+                    $manufacturing->itemsInManufacturing()->create([
                         'item_id'  => $rawItem['item_id'],
                         'batch_id' => $batch->id,
                         'amount'   => $deduct,
@@ -97,7 +97,7 @@ class CookController extends Controller
 
             $batch = Batch::create([
                 'item_id'            => $request->out_item_id,
-                'source_type'        => 'manufacturing',
+                'source_type'        => 'App\Models\Manufacturing',
                 'source_id'          => $manufacturing->id,
                 'initial_quantity'   => $request->out_amount,
                 'remaining_quantity' => $request->out_amount,

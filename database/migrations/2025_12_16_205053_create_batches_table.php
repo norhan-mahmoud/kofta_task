@@ -17,8 +17,9 @@ return new class extends Migration
                 $table->foreignId('item_id')
                     ->constrained('items');
 
-                $table->enum('source_type', ['supply', 'manufacturing']);
-                $table->unsignedBigInteger('source_id');
+                
+
+                $table->morphs('source');
 
                 $table->decimal('initial_quantity', 10, 2);
                 $table->decimal('remaining_quantity', 10, 2);
@@ -28,7 +29,6 @@ return new class extends Migration
 
                 $table->timestamps();
 
-                $table->index(['source_type', 'source_id']);
             });
 
     }
